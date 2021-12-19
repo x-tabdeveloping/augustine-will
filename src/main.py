@@ -117,4 +117,4 @@ def update_figure(n_clicks,k, m, seeds_text):
         return {}
 
 if __name__ == '__main__':
-    app.run_server(host='0.0.0.0', debug=True, port = os.environ.get('PORT', 8080))
+    app.run_server(debug=True, port = int(os.environ.get('PORT', 8080)))
