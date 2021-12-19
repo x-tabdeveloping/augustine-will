@@ -11,9 +11,10 @@ from gensim.models import Word2Vec
 import os
 import plotly.graph_objs as go
 
-model = Word2Vec.load("dat/word2vec.model")
+model = Word2Vec.load("../dat/word2vec.model")
 
 app = dash.Dash(__name__)
+server = app.server
 
 app.layout = html.Div([
     html.Div(
@@ -117,4 +118,4 @@ def update_figure(n_clicks,k, m, seeds_text):
         return {}
 
 if __name__ == '__main__':
-    app.run_server(debug=True, port = int(os.environ.get('PORT', 8080)))
+    app.run_server(host = "0.0.0.0", debug=True, port = 8080)
