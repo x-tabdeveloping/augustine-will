@@ -506,7 +506,7 @@ class LatinBackoffLemmatizer:
         self.backoff2 = DictLemmatizer(
             lemmas=self.LATIN_OLD_MODEL,
             source="Morpheus Lemmas",
-            backoff=self.backoff0,
+            backoff=self.backoff1,
             verbose=self.VERBOSE,
         )
         self.backoff3 = RegexpLemmatizer(
@@ -554,10 +554,21 @@ from cltk.nlp import NLP
     
 lemmatizer = LatinBackoffLemmatizer()
 
+def remove_digits(text):
+    return re.sub(r"\d", "", text)
+
+def isRomanNumeral(word):
+    return word and word[0] == '%'
+
 def lemmatize(words):
     stops = cltk.stops.words.Stops(iso_code="lat")
-    lemmata = [lemma for _,lemma in lemmatizer.lemmatize(words)]
-    lemmata = [lemma for lemma in lemmata if lemma]
+    lemmata = stops.remove_stopwords(words)
+    lemmata = [lemma for _,lemma in lemmatizer.lemmatize(lemmata)]
+    bad_tags = ["punc", "-que", "e", "-ne"]
+    lemmata = [
+        remove_digits(lemma) for lemma in lemmata 
+        if lemma and not isRomanNumeral(lemma) and lemma not in bad_tags
+    ]
     lemmata = stops.remove_stopwords(lemmata)
     return lemmata
 
@@ -571,10 +582,10 @@ def normalize(text):
     text = re.sub(r"[\?!;]", ".", text)
     #removes commas
     text = re.sub(r",", "", text)
-    #removes colons
-    to_remove = ["<",">","\d","+","\\","/","-","%","{","}", ":", "\n", "*"]
-    pattern = re.compile("[" + re.escape("".join(to_remove)) + "]")
-    text = re.sub(pattern, "", text)
+    #removes digits
+    text = re.sub(r"\d", "", text)
+    #replaces line endings with spaces
+    text = re.sub(r"\n", " ", text)
     #removes unnecessary whitespace
     return text.strip()
 
@@ -590,4 +601,5 @@ def tokenize(text):
     return nlp_tokenizer.analyze(text = text).tokens
 
 def prepare_seeds(model, seeds):
+    seeds = [seed.lower() for seed in seeds]
     return [seed for seed in lemmatize(seeds) if seed in model.wv.vocab.keys()]
