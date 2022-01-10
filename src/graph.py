@@ -64,6 +64,8 @@ def get_networx_graph(seeds, model, k = 3, m = 3):
     delta, labels = graph(types, tokens, model)
     print(f"Building matrix with labels: {labels}")
     delta = dist_prune(delta)
+    print(f"Delta's shape: {delta.shape}")
+    connections = np.sum(delta != 0, axis=1)
     delta = delta * 10  # scale
     dt = [("len", float)]
     delta = delta.view(dt)
@@ -73,7 +75,7 @@ def get_networx_graph(seeds, model, k = 3, m = 3):
     G = nx.relabel_nodes(G, dict(enumerate(labels)))
     pos = spring_layout(G) #graphviz_layout(G)
     print("Giving back G and pos")
-    return G, pos
+    return G, pos, connections
 
 def graph(types, tokens, model):
     delta = similarity_matrix(tokens, model)
@@ -103,7 +105,7 @@ def read_graphs():
         graphs[koncept] = (G, pos_dict)
     return graphs
 
-def plotly_graph(G, pos):
+def plotly_graph(G, pos, connections):
     print("constructing plotly graph")
     edge_x = []
     edge_y = []
@@ -132,20 +134,16 @@ def plotly_graph(G, pos):
 
     node_trace = go.Scatter(
         x=node_x, y=node_y,
-        mode='markers + text',
+        mode='markers',
         hoverinfo='text',
-        text = list(G.nodes()),
-        textposition='top center',
-        marker=dict(
-            # colorscale options
-            #'Greys' | 'YlGnBu' | 'Greens' | 'YlOrRd' | 'Bluered' | 'RdBu' |
-            #'Reds' | 'Blues' | 'Picnic' | 'Rainbow' | 'Portland' | 'Jet' |
-            #'Hot' | 'Blackbody' | 'Earth' | 'Electric' | 'Viridis' |
-            colorscale='Rainbow',
-            reversescale=True,
-            color=colors,
-            size=10,
-            line_width=2)
+        text = [f"Word: {node}, Number of connections: {n}" for n, node in zip(connections, G.nodes())],
+        marker={
+            "colorscale": 'Rainbow',
+            "reversescale" :True,
+            "color" : colors,
+            "size" : 10*100*connections/np.sum(connections),
+            "line_width" : 2
+        }
     )
 
     #node_trace.text = list(G.nodes())
@@ -156,9 +154,24 @@ def plotly_graph(G, pos):
                 titlefont_size=16,
                 showlegend=False,
                 #showscale = False,
-                hovermode='closest',
+                #hovermode='closest',
                 margin=dict(b=20,l=5,r=5,t=40),
                 xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
                 yaxis=dict(showgrid=False, zeroline=False, showticklabels=False))
                 )
+    for i, node in enumerate(G.nodes()):
+        x,y = pos[node]
+        fig.add_annotation(
+            text = node,
+            x = x,
+            y = y,
+            showarrow = False,
+            xanchor = "center",
+            bgcolor = "rgba(255,255,255,0.4)",
+            font={
+                "family" : "Helvetica",
+                "size" : max(100*connections[i]/sum(connections), 10),
+                "color": "black"
+            }
+        )
     return fig
