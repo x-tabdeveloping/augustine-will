@@ -52,7 +52,7 @@ def dist_prune(d, prune=True):
     d = 1-d
     np.fill_diagonal(d, 0.)
     if prune:
-        cond = np.mean(d)
+        cond = np.median(d)
         zero = np.zeros_like(d)
         return np.where(d > cond, zero, d)
     else:
@@ -138,7 +138,7 @@ def plotly_graph(G, pos, connections):
         hoverinfo='text',
         text = [f"Word: {node}, Number of connections: {n}" for n, node in zip(connections, G.nodes())],
         marker={
-            "colorscale": 'Rainbow',
+            "colorscale": 'aggrnyl',
             "reversescale" :True,
             "color" : colors,
             "size" : 10*100*connections/np.sum(connections),

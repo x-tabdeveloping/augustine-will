@@ -20,59 +20,64 @@ word_use = token_table.drop("tokens", "columns").groupby("Årstal").sum().reset_
 app = dash.Dash(__name__)
 server = app.server
 
+def Label(text = ""):
+    return html.Label(
+                text,
+                style={
+                    'padding-top': '20px',
+                    "font": "15px Helvetica",
+                    "margin-bottom": "7px"
+                }
+            )
+
 app.layout = html.Div([
     html.Div([
+        dcc.Tabs(id="tabs", value="network-tab", children=[
+            dcc.Tab(label="Semantisk netværk", value="network-tab"),
+            dcc.Tab(label="Tidslinje og ordanalyse", value="timeline-tab"),
+        ], colors={
+        "border": "white",
+        "primary": "#8100d1",
+        "background": "#fbf5ff"
+        }),
         html.Div(
             dcc.Graph(id='network'),
+            id="network-container",
         ),
         html.Div([
             dcc.Graph(id='timeline', style={"display": "flex", "flex": "2"}),
             dcc.Graph(id="word-occurance", style={"display": "flex", "flex": "1"})
         ],
-        style={
-            "display": "flex",
-            "flex-direction": "row",
-        })
+        id="timeline-container"),
     ],
     style={
             #'padding': '10px',
             "display": "flex",
             "flex-direction": "column",
             "flex": "4",
-            "height": "100%"
+            "height": "100%",
+            "font": "15px Helvetica",
     }),
     html.Div([
-                html.Label(
-                    ['Please write in the seeds (comma-separated):'],
-                    style={
-                        'padding-top': '20px',
-                        "font": "15px Helvetica"
-                    }
-                ),
+                Label('Please write in the seeds (comma-separated):'),
                 html.Div([dcc.Input(
                     id='seeds',
                     type='text',
                     placeholder="Your seeds here",
                     style={
                         'padding' : '10px',
+                        "margin-right": "10px",
                         'font': '15px Helvetica',
-                        'width' : '100%',
+                        'width' : '95%',
                     }
                     )],
                     style={
-                        'padding-top' : '10px',
+                        'padding' : '10px',
                         'font': '10px Helvetica',
-                        'width' : '100%',
+                        #'width' : '100%',
                         'margin-bottom': '20px'
                     }),
-                html.Label(
-                    ['Number of words from first level of association:'],
-                    style={
-                        'margin-top': '10px',
-                        'padding-top': '20px',
-                        "font": "15px Helvetica"
-                    }
-                ),
+                Label('Number of words from first level of association:'),
                 dcc.Slider(
                     id='k',
                     min=1,
@@ -81,13 +86,7 @@ app.layout = html.Div([
                     value=3,
                     tooltip={"placement": "bottom", "always_visible": True}
                 ),
-                html.Label(
-                    ['Number of words from second level of association:'],
-                    style={
-                        'padding-top': '20px',
-                        "font": "15px Helvetica"
-                    }
-                ),
+                Label('Number of words from second level of association:'),
                 dcc.Slider(
                     id='m',
                     min=1,
@@ -95,6 +94,16 @@ app.layout = html.Div([
                     step=1,
                     value=3,
                     tooltip={"placement": "bottom", "always_visible": True}
+                ),
+                Label("Please select which genres to analyse:"),
+                dcc.Checklist(
+                    options=[
+                        {"label": "Sermon", "value": "Sermon"},
+                        {"label": "Letter", "value": "Letter"},
+                        {"label": "Writing", "value": "Writing"},
+                    ],
+                    value=["Sermon", "Letter", "Writing"],
+                    id="genres-list"
                 ),
                 html.Button(
                     'Submit',
@@ -120,7 +129,7 @@ app.layout = html.Div([
             "flex-direction": "column",
             "margin": "0",
             "flex": "2",
-            "background": "#f0f0f0",
+            "background": "#fcfcfc",
             "box-shadow": "-2px 0 5px #00000066",
             "z-index": "5",
         }),
@@ -142,11 +151,12 @@ style={
 @app.callback(
     [Output('network', 'figure'), Output('timeline', 'figure'), Output("word-occurance", "figure")],
     [Input('submit', 'n_clicks'),
+    State("genres-list", "value"),
     State('k', 'value'),
     State('m', 'value'),
     State('seeds', 'value')]
 )
-def update_network(n_clicks,k, m, seeds_text):
+def update_network(n_clicks,genres, k, m, seeds_text):
     if seeds_text:
         seeds = [seed.strip() for seed in seeds_text.split(",")]
         network_seeds = prepare_seeds(model,seeds)
@@ -154,11 +164,32 @@ def update_network(n_clicks,k, m, seeds_text):
         G, pos, connections = get_networx_graph(network_seeds, model, k = k, m = m)
         return (
             plotly_graph(G, pos, connections),
-            plot_word_use(word_use,token_table, seeds),
-            plot_word_occurance(token_table, seeds)
+            plot_word_use(word_use,token_table, seeds, genres),
+            plot_word_occurance(token_table, seeds, genres)
         )
     else:
         return {}, {}, {}
+
+@app.callback([Output('network-container', 'style'), Output("timeline-container", "style")],
+              [Input('tabs', 'value')])
+def render_tabs(tab):
+    if tab == 'network-tab':
+        return (
+            {
+                "display": "flex",
+                "flex": "1"
+            }, {
+                "display" : "none"
+            }
+        )
+    elif tab == 'timeline-tab':
+        return (
+            {
+                "display" : "none"
+            }, {
+                "display": "block",
+            }
+        )
 
 if __name__ == '__main__':
     app.run_server(debug = True)#host = "0.0.0.0", debug=True, port = 8080)
