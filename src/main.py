@@ -41,7 +41,7 @@ app.layout = html.Div([
         "background": "#fbf5ff"
         }),
         html.Div(
-            dcc.Graph(id='network'),
+            dcc.Graph(id='network', style={"height": "100%", "width": "100%"}),
             id="network-container",
         ),
         html.Div([
@@ -128,7 +128,7 @@ app.layout = html.Div([
             "display": "flex",
             "flex-direction": "column",
             "margin": "0",
-            "flex": "2",
+            "flex": "0 0 420px",
             "background": "#fcfcfc",
             "box-shadow": "-2px 0 5px #00000066",
             "z-index": "5",
@@ -176,8 +176,10 @@ def render_tabs(tab):
     if tab == 'network-tab':
         return (
             {
-                "display": "flex",
-                "flex": "1"
+                "display": "block",
+                #"flex": "1",
+                "width": "100%",
+                "height": "100%"
             }, {
                 "display" : "none"
             }
