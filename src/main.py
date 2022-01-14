@@ -2,7 +2,7 @@ from dash import dcc
 import dash
 from dash import html, State
 from dash.dependencies import Input, Output
-from graph import get_networx_graph, plotly_graph, read_graphs
+from graph import build_plot, get_graph
 from latin import prepare_seeds
 import plotly.express as px
 import plotly.graph_objects as go
@@ -11,7 +11,7 @@ from gensim.models import Word2Vec
 import os
 import plotly.graph_objs as go
 import pandas as pd
-from timeline import plot_word_occurance, plot_word_use
+from timeline import filter_tokens, plot_word_occurance, plot_word_use
 
 model = Word2Vec.load("../dat/word2vec.model")
 token_table = pd.read_csv("../dat/token_table.csv")
@@ -20,82 +20,151 @@ word_use = token_table.drop("tokens", "columns").groupby("Årstal").sum().reset_
 app = dash.Dash(__name__)
 server = app.server
 
-def Label(text = ""):
-    return html.Label(
-                text,
-                style={
-                    'padding-top': '20px',
-                    "font": "15px Helvetica",
-                    "margin-bottom": "7px"
-                }
-            )
 
-app.layout = html.Div([
-    html.Div([
-        dcc.Tabs(id="tabs", value="network-tab", children=[
-            dcc.Tab(label="Semantisk netværk", value="network-tab"),
-            dcc.Tab(label="Tidslinje og ordanalyse", value="timeline-tab"),
-        ], colors={
-        "border": "white",
-        "primary": "#8100d1",
-        "background": "#fbf5ff"
-        }),
+def Label(text=""):
+    return html.Label(
+        text,
+        style={"padding-top": "20px", "font": "15px Helvetica", "margin-bottom": "7px"},
+    )
+
+
+popup_style = {
+    "display": "none",
+    "position": "fixed",
+    "top": "50%",
+    "left": "50%",
+    "transform": "translate(-50%, -50%)",
+    "width": "50%",
+    "height": "50%",
+    "padding": "10px",
+    "z-index": "10",
+    "background": "white",
+    "box-shadow": "2px 2px 5px #00000066",
+    "border-radius": "8px",
+    "overflow": "hidden",
+}
+
+close_button_style = {
+    "position": "absolute",
+    "top": "20",
+    "left": "95%",
+    "background": "#00000000",
+    "color": "#8100d1",
+    "padding": "10px",
+    "padding-right": "15px",
+    "padding-left": "15px",
+    "outline": "false",
+    "font": "bold 12px Helvetica",
+    "border": "none",
+    "transform": "translate(-50%)",
+}
+
+sidebar_style = {
+    "padding": "10px",
+    "display": "flex",
+    "flex-direction": "column",
+    "margin": "0",
+    "flex": "0 0 420px",
+    "background": "white",  # "#fcfcfc",
+    "box-shadow": "-2px 0 5px #00000066",
+    "z-index": "5",
+}
+
+app.layout = html.Div(
+    [
         html.Div(
-            dcc.Graph(id='network', style={"height": "100%", "width": "100%"}),
-            id="network-container",
+            [
+                dcc.Tabs(
+                    id="tabs",
+                    value="network-tab",
+                    children=[
+                        dcc.Tab(label="Semantisk netværk", value="network-tab"),
+                        dcc.Tab(label="Tidslinje og ordanalyse", value="timeline-tab"),
+                    ],
+                    colors={
+                        "border": "white",
+                        "primary": "#8100d1",
+                        "background": "#fbf5ff",
+                    },
+                ),
+                html.Div(
+                    dcc.Graph(id="network", style={"height": "100%", "width": "100%"}),
+                    id="network-container",
+                ),
+                html.Div(
+                    [
+                        dcc.Graph(
+                            id="timeline", style={"width": "100%"}
+                        ),
+                        dcc.Dropdown(
+                            id="timeline-switch",
+                            options=[
+                                {"label": "Procentvis", "value": "procent"},
+                                {"label": "Absolute tal", "value": "absolute"}
+                            ],
+                            value="absolute",
+                            clearable=False
+                        ),
+                        dcc.Graph(
+                            id="word-occurance", style={"width": "100%"}
+                        ),
+                    ],
+                    id="timeline-container",
+                ),
+            ],
+            style={
+                # 'padding': '10px',
+                "display": "flex",
+                "flex-direction": "column",
+                "flex": "4",
+                "height": "100%",
+                "font": "15px Helvetica",
+                "overflow-y": "auto",
+            },
         ),
-        html.Div([
-            dcc.Graph(id='timeline', style={"display": "flex", "flex": "2"}),
-            dcc.Graph(id="word-occurance", style={"display": "flex", "flex": "1"})
-        ],
-        id="timeline-container"),
-    ],
-    style={
-            #'padding': '10px',
-            "display": "flex",
-            "flex-direction": "column",
-            "flex": "4",
-            "height": "100%",
-            "font": "15px Helvetica",
-    }),
-    html.Div([
-                Label('Please write in the seeds (comma-separated):'),
-                html.Div([dcc.Input(
-                    id='seeds',
-                    type='text',
-                    placeholder="Your seeds here",
+        html.Div(
+            [
+                Label("Indtast dine seeds (komma separeret):"),
+                html.Div(
+                    [
+                        dcc.Input(
+                            id="seeds",
+                            type="text",
+                            placeholder="Your seeds here",
+                            style={
+                                "padding": "10px",
+                                "margin-right": "10px",
+                                "font": "15px Helvetica",
+                                "width": "95%",
+                            },
+                        )
+                    ],
                     style={
-                        'padding' : '10px',
-                        "margin-right": "10px",
-                        'font': '15px Helvetica',
-                        'width' : '95%',
-                    }
-                    )],
-                    style={
-                        'padding' : '10px',
-                        'font': '10px Helvetica',
-                        #'width' : '100%',
-                        'margin-bottom': '20px'
-                    }),
-                Label('Number of words from first level of association:'),
+                        "padding": "10px",
+                        "font": "10px Helvetica",
+                        # 'width' : '100%',
+                        "margin-bottom": "20px",
+                    },
+                ),
+                Label("Antal af ord fra first level assoc.:"),
                 dcc.Slider(
-                    id='k',
+                    id="k",
                     min=1,
                     max=10,
                     step=1,
                     value=3,
-                    tooltip={"placement": "bottom", "always_visible": True}
+                    tooltip={"placement": "bottom", "always_visible": True},
                 ),
-                Label('Number of words from second level of association:'),
+                Label("Antal af ord fra second level assoc.:"),
                 dcc.Slider(
-                    id='m',
+                    id="m",
                     min=1,
                     max=10,
                     step=1,
                     value=3,
-                    tooltip={"placement": "bottom", "always_visible": True}
+                    tooltip={"placement": "bottom", "always_visible": True},
                 ),
-                Label("Please select which genres to analyse:"),
+                Label("Vælg genrerne til analysen:"),
                 dcc.Checklist(
                     options=[
                         {"label": "Sermon", "value": "Sermon"},
@@ -103,95 +172,178 @@ app.layout = html.Div([
                         {"label": "Writing", "value": "Writing"},
                     ],
                     value=["Sermon", "Letter", "Writing"],
-                    id="genres-list"
+                    id="genres-list",
                 ),
                 html.Button(
-                    'Submit',
-                    id='submit',
+                    "Vælg værker",
+                    id="open-works",
+                    n_clicks_timestamp=0,
+                    style={
+                        "margin-top": "10px",
+                        "padding": "15px",
+                        "padding-left": "20px",
+                        "padding-right": "20px",
+                        "outline": "false",
+                        "font": "bold 10px Helvetica",
+                        "background": "#d5b2eb",
+                        "color": "black",
+                        "border": "none",
+                        "border-radius": "8px",
+                    },
+                ),
+                html.Button(
+                    "Anvend",
+                    id="submit",
                     n_clicks=0,
                     style={
-                        'margin-top' : '10px',
-                        'padding' : '15px',
-                        'padding-left' : '20px',
-                        'padding-right' : '20px',
-                        'outline': 'false',
-                        'font': 'bold 10px Helvetica',
-                        'background': '#8100d1',
-                        'color' : 'white',
-                        'border' : 'none',
-                        'border-radius': '8px'
-                    }
+                        "margin-top": "10px",
+                        "padding": "15px",
+                        "padding-left": "20px",
+                        "padding-right": "20px",
+                        "outline": "false",
+                        "font": "bold 10px Helvetica",
+                        "background": "#8100d1",
+                        "color": "white",
+                        "border": "none",
+                        "border-radius": "8px",
+                    },
                 ),
-        ],
-        style={
-            'padding': '10px',
-            "display": "flex",
-            "flex-direction": "column",
-            "margin": "0",
-            "flex": "0 0 420px",
-            "background": "#fcfcfc",
-            "box-shadow": "-2px 0 5px #00000066",
-            "z-index": "5",
-        }),
-],
-style={
+            ],
+            style=sidebar_style,
+        ),
+        html.Div(
+            [
+                html.Button(
+                    "Anvend",
+                    id="close-works",
+                    n_clicks_timestamp=0,
+                    style=close_button_style,
+                ),
+                html.Button(
+                    "Fravalg alt",
+                    id="deselect-works",
+                    n_clicks=0,
+                    style={
+                        **close_button_style,
+                        "margin-top": "40px",
+                        "color": "black",
+                    },
+                ),
+                html.Div(
+                    dcc.Dropdown(
+                        options=[],
+                        value=[],
+                        id="works-list",
+                        multi=True,
+                    ),
+                    style={"width": "90%", "overflow-y": "auto"},
+                ),
+            ],
+            id="work-popup",
+            style=popup_style,
+        ),
+    ],
+    style={
         "top": "0",
         "left": "0",
         "display": "flex",
         "flex-direction": "row",
         "justify-content": "space-around",
         "align-items": "stretch",
-        #"flex": "1",
+        # "flex": "1",
         "height": "100%",
         "width": "100%",
-        "position": "fixed"
-    }
+        "position": "fixed",
+    },
 )
 
+
 @app.callback(
-    [Output('network', 'figure'), Output('timeline', 'figure'), Output("word-occurance", "figure")],
-    [Input('submit', 'n_clicks'),
-    State("genres-list", "value"),
-    State('k', 'value'),
-    State('m', 'value'),
-    State('seeds', 'value')]
+    [
+        Output("network", "figure"),
+        Output("timeline", "figure"),
+        Output("word-occurance", "figure"),
+    ],
+    [
+        Input("submit", "n_clicks"),
+        State("genres-list", "value"),
+        State("k", "value"),
+        State("m", "value"),
+        State("seeds", "value"),
+        State("works-list", "value"),
+        Input("timeline-switch", "value")
+    ],
 )
-def update_network(n_clicks,genres, k, m, seeds_text):
+def update(n_clicks, genres, k, m, seeds_text, works, timeline_type):
     if seeds_text:
         seeds = [seed.strip() for seed in seeds_text.split(",")]
-        network_seeds = prepare_seeds(model,seeds)
-        #print(f"creating kernel with seeds: {seeds}")
-        G, pos, connections = get_networx_graph(network_seeds, model, k = k, m = m)
+        network_seeds = prepare_seeds(model, seeds)
+        # print(f"creating kernel with seeds: {seeds}")
+        analysis_df = filter_tokens(token_table, seeds, genres, works)
         return (
-            plotly_graph(G, pos, connections),
-            plot_word_use(word_use,token_table, seeds, genres),
-            plot_word_occurance(token_table, seeds, genres)
+            build_plot(get_graph(network_seeds, model, k, m)),
+            plot_word_use(analysis_df, word_use, timeline_type),
+            plot_word_occurance(analysis_df),
         )
     else:
         return {}, {}, {}
 
-@app.callback([Output('network-container', 'style'), Output("timeline-container", "style")],
-              [Input('tabs', 'value')])
+
+@app.callback(
+    Output("work-popup", "style"),
+    [
+        Input("open-works", "n_clicks_timestamp"),
+        Input("close-works", "n_clicks_timestamp"),
+    ],
+)
+def open_works(open_b, close_b):
+    if open_b > close_b:
+        return {**popup_style, "display": "flex"}
+    else:
+        return popup_style
+
+
+@app.callback(
+    [Output("network-container", "style"), Output("timeline-container", "style")],
+    [Input("tabs", "value")],
+)
 def render_tabs(tab):
-    if tab == 'network-tab':
+    if tab == "network-tab":
         return (
             {
                 "display": "block",
-                #"flex": "1",
+                # "flex": "1",
                 "width": "100%",
-                "height": "100%"
-            }, {
-                "display" : "none"
-            }
+                "height": "100%",
+            },
+            {"display": "none"},
         )
-    elif tab == 'timeline-tab':
+    elif tab == "timeline-tab":
         return (
+            {"display": "none"},
             {
-                "display" : "none"
-            }, {
                 "display": "block",
-            }
+            },
         )
 
-if __name__ == '__main__':
-    app.run_server(debug = True)#host = "0.0.0.0", debug=True, port = 8080)
+
+@app.callback(
+    [Output("works-list", "options"), Output("works-list", "value")],
+    [Input("genres-list", "value"), Input("deselect-works", "n_clicks")],
+)
+def update_works_list(genres, deselect):
+    changed_id = [p["prop_id"] for p in dash.callback_context.triggered][0]
+    if not genres:
+        genres = ["Writing", "Letter", "Sermon"]
+    df = token_table[token_table["Genre"].isin(genres)]
+    _, uniques = pd.factorize(df["Forkortelse"])
+    works = list(uniques)
+    options = [{"label": work, "value": work} for work in works]
+    if "deselect-works" in changed_id:
+        return options, []
+    else:
+        return options, works
+
+
+if __name__ == "__main__":
+    app.run_server(debug=True)  # host = "0.0.0.0", debug=True, port = 8080)
