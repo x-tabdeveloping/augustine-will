@@ -1,8 +1,9 @@
+import click
 from dash import dcc
 import dash
 from dash import html, State
 from dash.dependencies import Input, Output
-from graph import build_plot, get_graph
+from graph import build_plot, get_graph, get_neighbours
 from latin import prepare_seeds
 import plotly.express as px
 import plotly.graph_objects as go
@@ -46,8 +47,8 @@ popup_style = {
 
 close_button_style = {
     "position": "absolute",
-    "top": "20",
-    "left": "95%",
+    "top": "22",
+    "left": "93%",
     "background": "#00000000",
     "color": "#8100d1",
     "padding": "10px",
@@ -72,6 +73,8 @@ sidebar_style = {
 
 app.layout = html.Div(
     [
+        dcc.Store(id="network-state", storage_type="local"),
+        dcc.Store(id="analysis-state", storage_type="local"),
         html.Div(
             [
                 dcc.Tabs(
@@ -88,26 +91,43 @@ app.layout = html.Div(
                     },
                 ),
                 html.Div(
-                    dcc.Graph(id="network", style={"height": "100%", "width": "100%"}),
+                    [
+                        dcc.Dropdown(
+                            id="network-switch",
+                            options=[
+                                {"label": "Sejt netværk 😎", "value": "sej"},
+                                {
+                                    "label": "Formalt netværk 📖",
+                                    "value": "kedelig",
+                                },
+                            ],
+                            value="sej",
+                            clearable=False,
+                            style={"height": "5%"},
+                        ),
+                        dcc.Graph(
+                            id="network",
+                            style={
+                                "height": "95%",
+                                "width": "100%",
+                            },
+                        ),
+                    ],
                     id="network-container",
                 ),
                 html.Div(
                     [
-                        dcc.Graph(
-                            id="timeline", style={"width": "100%"}
-                        ),
+                        dcc.Graph(id="timeline", style={"width": "100%"}),
                         dcc.Dropdown(
                             id="timeline-switch",
                             options=[
                                 {"label": "Procentvis", "value": "procent"},
-                                {"label": "Absolute tal", "value": "absolute"}
+                                {"label": "Absolute tal", "value": "absolute"},
                             ],
                             value="absolute",
-                            clearable=False
+                            clearable=False,
                         ),
-                        dcc.Graph(
-                            id="word-occurance", style={"width": "100%"}
-                        ),
+                        dcc.Graph(id="word-occurance", style={"width": "100%"}),
                     ],
                     id="timeline-container",
                 ),
@@ -242,6 +262,32 @@ app.layout = html.Div(
             id="work-popup",
             style=popup_style,
         ),
+        html.Div(
+            [
+                html.Button(
+                    "Close",
+                    id="close-connections",
+                    n_clicks_timestamp=0,
+                    style=close_button_style,
+                ),
+                dcc.Clipboard(
+                    target_id="connections-text",
+                    n_clicks=0,
+                    style={
+                        **close_button_style,
+                        "margin-top": "40px",
+                        "color": "black",
+                    },
+                ),
+                html.Div(
+                    "",
+                    id="connections-text",
+                    style={"width": "90%", "overflow-y": "auto"},
+                ),
+            ],
+            id="connections-popup",
+            style=popup_style,
+        ),
     ],
     style={
         "top": "0",
@@ -259,34 +305,71 @@ app.layout = html.Div(
 
 
 @app.callback(
+    Output("network-state", "data"),
     [
-        Output("network", "figure"),
+        Input("submit", "n_clicks"),
+        State("k", "value"),
+        State("m", "value"),
+        State("seeds", "value"),
+    ],
+)
+def update_network(n_clicks, k, m, seeds_text):
+    if (not n_clicks) or (not seeds_text):
+        raise dash.exceptions.PreventUpdate
+    seeds = [seed.strip() for seed in seeds_text.split(",")]
+    seeds = prepare_seeds(model, seeds)
+    return get_graph(seeds, model, k, m)
+
+
+@app.callback(
+    Output("analysis-state", "data"),
+    [
+        Input("submit", "n_clicks"),
+        State("seeds", "value"),
+        State("works-list", "value"),
+        State("genres-list", "value"),
+    ],
+)
+def update_word_analysis(n_clicks, seeds_text, works, genres):
+    if (not n_clicks) or (not seeds_text):
+        raise dash.exceptions.PreventUpdate
+    seeds = [seed.strip() for seed in seeds_text.split(",")]
+    return dict(analysis_df=filter_tokens(token_table, seeds, genres, works).to_dict())
+
+
+@app.callback(
+    Output("network", "figure"),
+    [
+        State("network-state", "data"),
+        Input("network-state", "modified_timestamp"),
+        Input("network-switch", "value"),
+    ],
+)
+def update_network_plot(network, ts, style):
+    if network is None:
+        raise dash.exceptions.PreventUpdate
+    return build_plot(network, style)
+
+
+@app.callback(
+    [
         Output("timeline", "figure"),
         Output("word-occurance", "figure"),
     ],
     [
-        Input("submit", "n_clicks"),
-        State("genres-list", "value"),
-        State("k", "value"),
-        State("m", "value"),
-        State("seeds", "value"),
-        State("works-list", "value"),
-        Input("timeline-switch", "value")
+        State("analysis-state", "data"),
+        Input("analysis-state", "modified_timestamp"),
+        Input("timeline-switch", "value"),
     ],
 )
-def update(n_clicks, genres, k, m, seeds_text, works, timeline_type):
-    if seeds_text:
-        seeds = [seed.strip() for seed in seeds_text.split(",")]
-        network_seeds = prepare_seeds(model, seeds)
-        # print(f"creating kernel with seeds: {seeds}")
-        analysis_df = filter_tokens(token_table, seeds, genres, works)
-        return (
-            build_plot(get_graph(network_seeds, model, k, m)),
-            plot_word_use(analysis_df, word_use, timeline_type),
-            plot_word_occurance(analysis_df),
-        )
-    else:
-        return {}, {}, {}
+def update_word_analysis(data, ts, timeline_type):
+    if data is None:
+        raise dash.exceptions.PreventUpdate
+    analysis_df = pd.DataFrame(data["analysis_df"])
+    return (
+        plot_word_use(analysis_df, word_use, timeline_type),
+        plot_word_occurance(analysis_df),
+    )
 
 
 @app.callback(
@@ -343,6 +426,42 @@ def update_works_list(genres, deselect):
         return options, []
     else:
         return options, works
+
+
+def markdown_list(values):
+    return "\n".join([f"* {value}" for value in values])
+
+
+@app.callback(
+    Output("connections-text", "children"),
+    [Input("network", "clickData"), State("network-state", "data")],
+)
+def update_connections(click_data, graph):
+    if (not click_data) or (graph is None):
+        raise dash.exceptions.PreventUpdate
+    node = click_data["points"][0]["customdata"]
+    neighbours = get_neighbours(graph, node)
+    title = "Connections of {}({}):".format(graph["labels"][node], len(neighbours))
+    return [
+        html.H1(title),
+        html.Ul([
+            html.Li(neighbour) for neighbour in neighbours
+        ])
+    ]
+
+
+@app.callback(
+    Output("connections-popup", "style"),
+    [Input("close-connections", "n_clicks_timestamp"), Input("network", "clickData")],
+)
+def close_connections(ts, click_data):
+    changed_id = [p["prop_id"] for p in dash.callback_context.triggered][0]
+    if (not ts) and (not click_data):
+        raise dash.exceptions.PreventUpdate
+    if "close-connections" not in changed_id:
+        return {**popup_style, "display": "flex"}
+    else:
+        return popup_style
 
 
 if __name__ == "__main__":

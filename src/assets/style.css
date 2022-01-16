@@ -1,0 +1,12 @@
+h1 {
+    font: 24px Helvetica;
+    color: black;
+    margin-left: 20px;
+    margin-top: none;
+    padding-top: 0;
+}
+
+li {
+    font: 14px Helvetica;
+    color: #292929;
+}
