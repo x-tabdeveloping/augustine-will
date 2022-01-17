@@ -95,9 +95,9 @@ app.layout = html.Div(
                         dcc.Dropdown(
                             id="network-switch",
                             options=[
-                                {"label": "Sejt netværk 😎", "value": "sej"},
+                                {"label": "Avanceret Netværk", "value": "sej"},
                                 {
-                                    "label": "Formalt netværk 📖",
+                                    "label": "Simpelt Netværk",
                                     "value": "kedelig",
                                 },
                             ],
@@ -240,7 +240,7 @@ app.layout = html.Div(
                     style=close_button_style,
                 ),
                 html.Button(
-                    "Fravalg alt",
+                    "Fravælg alt",
                     id="deselect-works",
                     n_clicks=0,
                     style={

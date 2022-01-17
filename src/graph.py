@@ -83,6 +83,8 @@ def get_graph(seeds, model, k, m):
 
 
 def get_edge_pos(edges, x_y):
+    edges = np.array(edges)
+    x_y = np.array(x_y)
     a = x_y[edges]
     # 2nas = np.empty_like(a.shape[1])
     # nas.fill(np.nan)

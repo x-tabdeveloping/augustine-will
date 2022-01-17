@@ -43,6 +43,6 @@ def plot_word_occurance(df):
         df,
         "tokens",
         "counts",
-        labels={"tokens": "Word", "counts": "Number of occurances"},
+        labels={"tokens": "Word", "counts": "Number of occurences"},
     )
     return fig
