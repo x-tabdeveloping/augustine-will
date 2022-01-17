@@ -13,6 +13,7 @@ RUN pip install matplotlib pandas dash plotly gensim networkx numpy community py
 COPY . .
 
 RUN pip install gunicorn
+RUN python cltk-fetch.py
 
 EXPOSE 8080
 CMD cd src && gunicorn -b 0.0.0.0:8080 main:server
