@@ -18,7 +18,7 @@ model = Word2Vec.load("../dat/word2vec.model")
 token_table = pd.read_csv("../dat/token_table.csv")
 word_use = token_table.drop("tokens", "columns").groupby("Årstal").sum().reset_index()
 
-app = dash.Dash(__name__)
+app = dash.Dash(__name__, title="Augustine")
 server = app.server
 
 
