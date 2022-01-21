@@ -305,7 +305,10 @@ app.layout = html.Div(
 
 
 @app.callback(
-    Output("network-state", "data"),
+    [
+        Output("network-state", "data"),
+        Output("network", "config")
+    ],
     [
         Input("submit", "n_clicks"),
         State("k", "value"),
@@ -317,8 +320,12 @@ def update_network(n_clicks, k, m, seeds_text):
     if (not n_clicks) or (not seeds_text):
         raise dash.exceptions.PreventUpdate
     seeds = [seed.strip() for seed in seeds_text.split(",")]
-    seeds = prepare_seeds(model, seeds)
-    return get_graph(seeds, model, k, m)
+    network_seeds = prepare_seeds(model, seeds)
+    filename = "{}_{}_{}".format("_".join(seeds),k,m)
+    return (
+        get_graph(network_seeds, model, k, m),
+        {"toImageButtonOptions": {"filename": filename}}
+    )
 
 
 @app.callback(
