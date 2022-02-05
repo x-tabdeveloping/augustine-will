@@ -1,8 +1,9 @@
 import pandas as pd
 import plotly.express as px
-
+from latin import lemmatize
 
 def filter_tokens(token_table, tokens, genres, works):
+    tokens = lemmatize(tokens)
     if not genres:
         genres = ["Writing", "Letter", "Sermon"]
     df = token_table[token_table["Genre"].isin(genres)]
@@ -12,6 +13,8 @@ def filter_tokens(token_table, tokens, genres, works):
 
 
 def plot_word_use(df, word_use, plot_type):
+    df = df.dropna(subset = ["Årstal"])
+    df = df.astype({"Årstal": "int32"})
     df = (
         df.groupby(["Årstal", "tokens"])
         .sum()
