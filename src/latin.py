@@ -560,11 +560,24 @@ def remove_digits(text):
 def isRomanNumeral(word):
     return word and word[0] == '%'
 
+# def lemmatize(words):
+#     stops = cltk.stops.words.Stops(iso_code="lat")
+#     lemmata = stops.remove_stopwords(words)
+#     lemmata = [lemma for _,lemma in lemmatizer.lemmatize(lemmata)]
+#     bad_tags = ["punc", "-que", "e", "-ne"]
+#     lemmata = [
+#         remove_digits(lemma) for lemma in lemmata 
+#         if lemma and not isRomanNumeral(lemma) and lemma not in bad_tags
+#     ]
+#     lemmata = stops.remove_stopwords(lemmata)
+#     return lemmata
+
 def lemmatize(words):
     stops = cltk.stops.words.Stops(iso_code="lat")
+    exceptions = {"caritas",}
     lemmata = stops.remove_stopwords(words)
-    lemmata = [lemma for _,lemma in lemmatizer.lemmatize(lemmata)]
-    bad_tags = ["punc", "-que", "e", "-ne"]
+    lemmata = [token if token in exceptions else lemma for token, lemma in lemmatizer.lemmatize(lemmata)]
+    bad_tags = {"punc", "-que", "e", "-ne"}
     lemmata = [
         remove_digits(lemma) for lemma in lemmata 
         if lemma and not isRomanNumeral(lemma) and lemma not in bad_tags
