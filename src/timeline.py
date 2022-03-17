@@ -2,6 +2,12 @@ import pandas as pd
 import plotly.express as px
 from latin import lemmatize
 
+"""
+This file is here to look at word use over time based on a token table that can be found in /dat
+If you only want to use the semantic kernel, don't bother :)
+"""
+
+
 def filter_tokens(token_table, tokens, genres, works):
     tokens = lemmatize(tokens)
     if not genres:
@@ -13,7 +19,7 @@ def filter_tokens(token_table, tokens, genres, works):
 
 
 def plot_word_use(df, word_use, plot_type):
-    df = df.dropna(subset = ["Årstal"])
+    df = df.dropna(subset=["Årstal"])
     df = df.astype({"Årstal": "int32"})
     df = (
         df.groupby(["Årstal", "tokens"])

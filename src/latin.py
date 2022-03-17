@@ -1,6 +1,10 @@
 import cltk
 cltk.data.fetch.FetchCorpus(language = "lat").import_corpus("lat_models_cltk")
 
+"""
+This entire file is here because of latin and in order to be able to lemmatize and filter seeds before using them :)
+"""
+
 import os
 import re
 from typing import List

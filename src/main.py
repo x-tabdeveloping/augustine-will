@@ -14,6 +14,8 @@ import plotly.graph_objs as go
 import pandas as pd
 from timeline import filter_tokens, plot_word_occurance, plot_word_use
 
+
+# Loads word2vec model and token table from /dat
 model = Word2Vec.load("../dat/word2vec.model")
 token_table = pd.read_csv("../dat/token_table.csv")
 word_use = token_table.drop("tokens", "columns").groupby("Årstal").sum().reset_index()
@@ -23,12 +25,16 @@ server = app.server
 
 
 def Label(text=""):
+    """
+    Create a nice looking Label component
+    """
     return html.Label(
         text,
         style={"padding-top": "20px", "font": "15px Helvetica", "margin-bottom": "7px"},
     )
 
 
+# Some styles :)
 popup_style = {
     "display": "none",
     "position": "fixed",
@@ -71,6 +77,8 @@ sidebar_style = {
     "z-index": "5",
 }
 
+
+# Layout of Html and Dcc components for the Dash application
 app.layout = html.Div(
     [
         dcc.Store(id="network-state", storage_type="local"),
@@ -305,10 +313,7 @@ app.layout = html.Div(
 
 
 @app.callback(
-    [
-        Output("network-state", "data"),
-        Output("network", "config")
-    ],
+    [Output("network-state", "data"), Output("network", "config")],
     [
         Input("submit", "n_clicks"),
         State("k", "value"),
@@ -317,14 +322,17 @@ app.layout = html.Div(
     ],
 )
 def update_network(n_clicks, k, m, seeds_text):
+    """
+    Updates the graph object in the network-state store when the Submit button is clicked
+    """
     if (not n_clicks) or (not seeds_text):
         raise dash.exceptions.PreventUpdate
     seeds = [seed.strip() for seed in seeds_text.split(",")]
     network_seeds = prepare_seeds(model, seeds)
-    filename = "{}_{}_{}".format("_".join(seeds),k,m)
+    filename = "{}_{}_{}".format("_".join(seeds), k, m)
     return (
         get_graph(network_seeds, model, k, m),
-        {"toImageButtonOptions": {"filename": filename}}
+        {"toImageButtonOptions": {"filename": filename}},
     )
 
 
@@ -338,6 +346,9 @@ def update_network(n_clicks, k, m, seeds_text):
     ],
 )
 def update_word_analysis(n_clicks, seeds_text, works, genres):
+    """
+    Updates the store of the store used for the word analysis tab when the Submit button is clicked
+    """
     if (not n_clicks) or (not seeds_text):
         raise dash.exceptions.PreventUpdate
     seeds = [seed.strip() for seed in seeds_text.split(",")]
@@ -353,6 +364,9 @@ def update_word_analysis(n_clicks, seeds_text, works, genres):
     ],
 )
 def update_network_plot(network, ts, style):
+    """
+    Re-renders the plot when the network-state store is changed or when the user switches between the cool graph and the boring one.
+    """
     if network is None:
         raise dash.exceptions.PreventUpdate
     return build_plot(network, style)
@@ -370,6 +384,10 @@ def update_network_plot(network, ts, style):
     ],
 )
 def update_word_analysis(data, ts, timeline_type):
+    """
+    Updates the word-analysis tab's plots whenever the analysis-state store changes or the timeline is switched
+    to procentwise or absolute values.
+    """
     if data is None:
         raise dash.exceptions.PreventUpdate
     analysis_df = pd.DataFrame(data["analysis_df"])
@@ -387,6 +405,9 @@ def update_word_analysis(data, ts, timeline_type):
     ],
 )
 def open_works(open_b, close_b):
+    """
+    Opens and closes the work selection popup when needed
+    """
     if open_b > close_b:
         return {**popup_style, "display": "flex"}
     else:
@@ -398,6 +419,9 @@ def open_works(open_b, close_b):
     [Input("tabs", "value")],
 )
 def render_tabs(tab):
+    """
+    Makes one of the tabs invisible and the other visible when the user switches between them
+    """
     if tab == "network-tab":
         return (
             {
@@ -422,6 +446,9 @@ def render_tabs(tab):
     [Input("genres-list", "value"), Input("deselect-works", "n_clicks")],
 )
 def update_works_list(genres, deselect):
+    """
+    Updates the list of works that can be selected from whenever a new filter is set.
+    """
     changed_id = [p["prop_id"] for p in dash.callback_context.triggered][0]
     if not genres:
         genres = ["Writing", "Letter", "Sermon"]
@@ -436,6 +463,10 @@ def update_works_list(genres, deselect):
 
 
 def markdown_list(values):
+    """
+    Turns a list of values to a markdown list, so that the user can look at a nice list whenever they
+    want to see a list of all connections of a certain point.
+    """
     return "\n".join([f"* {value}" for value in values])
 
 
@@ -444,17 +475,16 @@ def markdown_list(values):
     [Input("network", "clickData"), State("network-state", "data")],
 )
 def update_connections(click_data, graph):
+    """
+    Returns a list of Html elements for each connection of a node when the graph is clicked.
+    These elements are set as the children of the connections popup.
+    """
     if (not click_data) or (graph is None):
         raise dash.exceptions.PreventUpdate
     node = click_data["points"][0]["customdata"]
     neighbours = get_neighbours(graph, node)
     title = "Connections of {}({}):".format(graph["labels"][node], len(neighbours))
-    return [
-        html.H1(title),
-        html.Ul([
-            html.Li(neighbour) for neighbour in neighbours
-        ])
-    ]
+    return [html.H1(title), html.Ul([html.Li(neighbour) for neighbour in neighbours])]
 
 
 @app.callback(
@@ -462,6 +492,9 @@ def update_connections(click_data, graph):
     [Input("close-connections", "n_clicks_timestamp"), Input("network", "clickData")],
 )
 def close_connections(ts, click_data):
+    """
+    Opens and closes the connections popup when needed.
+    """
     changed_id = [p["prop_id"] for p in dash.callback_context.triggered][0]
     if (not ts) and (not click_data):
         raise dash.exceptions.PreventUpdate
