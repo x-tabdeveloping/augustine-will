@@ -1,20 +1,12 @@
+import os
 from typing import Dict, List
+
+import networkx as nx
+import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from community import community_louvain
-import networkx as nx
-import os
-import pickle
-import numpy as np
 from gensim.models import Word2Vec
-import os
-import matplotlib.pyplot as plt
-import networkx as nx
-
-# from networkx.drawing.nx_agraph import graphviz_layout
-import itertools
-import gensim
-import re
 from networkx.drawing.layout import spring_layout
 
 
