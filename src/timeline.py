@@ -46,7 +46,7 @@ def plot_word_use(df, word_use, plot_type):
 
 
 def plot_word_occurance(df):
-    df = df.drop("Årstal", "columns").groupby("tokens").sum().reset_index()  # \
+    df = df.drop(columns=["Årstal"]).groupby("tokens").sum().reset_index()  # \
     # .rename({"counts": "Antal af forekomster i alt", "tokens": "Ord"}, axis = "columns")
     fig = px.bar(
         df,

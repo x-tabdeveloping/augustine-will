@@ -1,24 +1,17 @@
-import click
-from dash import dcc
 import dash
-from dash import html, State
+import pandas as pd
+from dash import State, dcc, html
 from dash.dependencies import Input, Output
+from gensim.models import Word2Vec
+
 from graph import build_plot, get_graph, get_neighbours
 from latin import prepare_seeds
-import plotly.express as px
-import plotly.graph_objects as go
-import networkx as nx
-from gensim.models import Word2Vec
-import os
-import plotly.graph_objs as go
-import pandas as pd
 from timeline import filter_tokens, plot_word_occurance, plot_word_use
 
-
-# Loads word2vec model and token table from /dat
+# Loads word2vec model and token table from disk
 model = Word2Vec.load("../dat/word2vec.model")
 token_table = pd.read_csv("../dat/token_table.csv")
-word_use = token_table.drop("tokens", "columns").groupby("Årstal").sum().reset_index()
+word_use = pd.read_csv("../dat/word_use.csv")
 
 app = dash.Dash(__name__, title="Augustine")
 server = app.server
@@ -345,7 +338,7 @@ def update_network(n_clicks, k, m, seeds_text):
         State("genres-list", "value"),
     ],
 )
-def update_word_analysis(n_clicks, seeds_text, works, genres):
+def update_word_analysis_state(n_clicks, seeds_text, works, genres):
     """
     Updates the store of the store used for the word analysis tab when the Submit button is clicked
     """
@@ -383,7 +376,7 @@ def update_network_plot(network, ts, style):
         Input("timeline-switch", "value"),
     ],
 )
-def update_word_analysis(data, ts, timeline_type):
+def update_word_analysis_plots(data, ts, timeline_type):
     """
     Updates the word-analysis tab's plots whenever the analysis-state store changes or the timeline is switched
     to procentwise or absolute values.
