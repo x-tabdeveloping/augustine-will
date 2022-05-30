@@ -8,6 +8,8 @@ from community import community_louvain
 from gensim.models import Word2Vec
 from networkx.drawing.layout import spring_layout
 
+from latin import remove_stopwords
+
 T = TypeVar("T")
 
 
@@ -63,6 +65,7 @@ def get_graph(seeds: List[str], model: Word2Vec, k: int, m: int) -> Dict:
         tokens.extend(most_similar(source, m, model))
         tokens.append(source)
     tokens = distinct(tokens)
+    tokens = remove_stopwords(tokens)
     labels = [token.upper() if token in types else token.lower() for token in tokens]
     delta = distance_matrix(tokens, model)
     connections = np.sum(delta != 0, axis=1)
