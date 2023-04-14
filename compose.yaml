@@ -1,0 +1,15 @@
+services:
+  server:
+    image: augustine_will/server
+    build: .
+    ports: 
+      - "8080:8080"
+    deploy:
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+    volumes:
+      - type: bind
+        source: ./dat
+        target: /dat

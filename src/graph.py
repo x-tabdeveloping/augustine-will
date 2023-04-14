@@ -69,11 +69,13 @@ def get_graph(seeds: List[str], model: Word2Vec, k: int, m: int) -> Dict:
     labels = [token.upper() if token in types else token.lower() for token in tokens]
     delta = distance_matrix(tokens, model)
     connections = np.sum(delta != 0, axis=1)
-    delta = delta * 10  # scale
-    dt = [("len", float)]
-    delta = delta.view(dt)
-    G = nx.from_numpy_matrix(delta)
-    pos = spring_layout(nx.from_numpy_matrix(delta))
+    # delta = delta * 10  # scale
+    # dt = [("len", float)]
+    # delta = delta.view(dt)
+    affinity = 1 - delta
+    affinity[affinity == 1] = 0
+    G = nx.from_numpy_array(affinity)
+    pos = spring_layout(G)
     parts = community_louvain.best_partition(G)
     colors = list(parts.values())
     edges = np.array(G.edges())
