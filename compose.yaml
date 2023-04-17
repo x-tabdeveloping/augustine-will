@@ -3,7 +3,7 @@ services:
     image: augustine_will/server
     build: .
     ports: 
-      - "8080:8080"
+      - "7010:8080"
     deploy:
       restart_policy:
         condition: on-failure
@@ -13,3 +13,5 @@ services:
       - type: bind
         source: ./dat
         target: /dat
+    environment:
+      DASH_URL_BASE_PATHNAME: "/augustine-graphtegner/"
